@@ -1,0 +1,70 @@
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    container_name: postgres
+    volumes:
+      - postgresql_data:/var/lib/postgresql
+      - ./initdb.d:/docker-entrypoint-initdb.d
+    env_file:
+      - .env
+    # environment:
+    #   POSTGRES_DB: ${POSTGRES_DB}
+    #   POSTGRES_USER: ${POSTGRES_USER}
+    #   POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+
+
+  server: # name of our service (can be anything like server,worker,postgres,redis,etc)
+    image: golang:1.26.3
+    container_name: server
+    build: # build image using Dockerfile in current directory
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "8080:8080" # map host port 8080 -> container port 8080
+        # format is "HOST:CONTAINER"
+        # so localhost:8080 on our machine
+        # hits port 8080 inside the container
+    volumes:
+      - .:/app # BIND MOUNT - this is the magic line
+        # "." = your current project folder on host
+        # "/app" = folder inside the conainer
+        # they are now the SAME folder, live synced
+        #Keep the /app in the folder and sync it but we don't want to keep the /app/tmp the binary of the go in the host machine it should be only in the docker container
+      - /app/tmp # ANONYMOUS VOLUME for the tmp folder
+        # This EXCLUDES /app/tmp from the bind mount
+        # Why? Air compiles binary into ./tmp/main
+        # we don't want that binary synced back
+        # to our host machine, keep it container-only
+    command: air -c .air.server.toml # override CMD, use server config
+    env_file:
+      - .env                 # loads DATABASE_URL and other vars your server needs
+    environment:
+      - GO_ENV=development # optional env var, userful for config switches
+    depends_on:
+      - postgres
+
+
+  worker:
+    image: golang:1.26.3
+    container_name: worker
+    build:
+      context: .
+      dockerfile: Dockerfile.worker
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/app
+      - /app/tmp
+    command: air -c .air.worker.toml
+    environment:
+      - GO_ENV=development
+    depends_on:
+      - postgres
+
+volumes:
+  postgresql_data:  # we have to right the volumes at the end of the docker-compose.yml file and this volume is used to store/presist the data in my machine
+                    # this data only gets delete only if i delete my docker volume or delete the container

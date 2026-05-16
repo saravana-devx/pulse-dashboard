@@ -1,0 +1,12 @@
+FROM postgres:16
+
+RUN apt-get update && apt-get install -y curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# prebuilt release: extract straight into the postgres extension dirs
+RUN mkdir -p /tmp/pg_uuidv7 \
+    && curl -L https://github.com/fboulnois/pg_uuidv7/releases/download/v1.6.0/pg_uuidv7.tar.gz \
+       | tar -xz -C /tmp/pg_uuidv7 \
+    && cp /tmp/pg_uuidv7/16/pg_uuidv7.so "$(pg_config --pkglibdir)/" \
+    && cp /tmp/pg_uuidv7/pg_uuidv7--1.6.sql /tmp/pg_uuidv7/pg_uuidv7.control "$(pg_config --sharedir)/extension/" \
+    && rm -rf /tmp/pg_uuidv7

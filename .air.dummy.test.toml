@@ -1,0 +1,42 @@
+# Root directory Air watches (relative to where air runs)
+root = "."
+
+# Where Air stores temporary build files
+tmp_dir = "tmp"
+
+[build]
+  # Command Air runs to compile your app
+  cmd = "go build -o ./tmp/main ."
+  #                 ↑ output binary path
+
+  # The compiled binary Air will execute after building
+  bin = "./tmp/main"
+
+  # Milliseconds Air waits after detecting a change before rebuilding
+  # Prevents rapid rebuilds if you save multiple files quickly
+  delay = 1000
+
+  # Directories Air will completely ignore (not watch)
+  exclude_dir = ["tmp", "vendor", ".git"]
+
+  # Only watch files with these extensions
+  # Changing a .md or .yml won't trigger a rebuild
+  include_ext = ["go", "mod", "env"]
+
+  # Arguments to pass to your binary when Air starts it
+  args_bin = []
+
+[log]
+  # Show timestamps in Air's log output
+  time = true
+
+[color]
+  # Color coding for Air's terminal output
+  app = "green"
+  build = "yellow"
+  runner = "cyan"
+  watcher = "blue"
+
+[misc]
+  # Delete the tmp folder when you Ctrl+C Air
+  clean_on_exit = true
