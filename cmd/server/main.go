@@ -4,28 +4,25 @@
 
 package main
 
-// import "fmt"
 import (
-	"github.com/gin-gonic/gin"
-	"net/http"
+	"log"
+	"pulseDashboard/internal/bootstrap"
 	"pulseDashboard/internal/config"
-	"pulseDashboard/internal/database"
 )
 
-func init() {
-	config.LoadEnvVariables()
-	database.ConnectDB()
-}
+// func init() {
+// 	config.LoadEnvVariables()
+// }
 
 func main() {
-	router := gin.Default()
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "pong",
-		})
-	})
-	err := router.Run(":8080")
+	config.LoadEnvVariables()
+	app, err := bootstrap.New()
+
 	if err != nil {
-		panic(err)
+		log.Fatalf("bootstrap failed: %v", err)
+	}
+
+	if err := app.Router.Run(":8080"); err != nil {
+		log.Fatalf("server failed: %v", err)
 	}
 }
