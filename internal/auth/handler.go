@@ -23,7 +23,8 @@ func (h *Handler) CreateUser(c *gin.Context) {
 		return
 	}
 
-	if err := h.svc.CreateUser(&body); err != nil {
+	SignupResult, err := h.svc.CreateUser(&body)
+	if err != nil {
 		switch {
 		case errors.Is(err, ErrEmailExists):
 			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
@@ -42,7 +43,10 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message": "user created",
+		"message":      "user created",
+		"user":         SignupResult.User,
+		"accessToken":  SignupResult.AccessToken,
+		"refreshToken": SignupResult.RefreshToken,
 	})
 }
 

@@ -6,8 +6,9 @@ import (
 	"unicode"
 )
 
+var emailRegex = regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
+
 func validateEmail(email string) bool {
-	emailRegex := regexp.MustCompile("^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$")
 	return emailRegex.MatchString(email)
 }
 
@@ -15,10 +16,10 @@ func validatePassword(password string) error {
 	const minLength = 8
 
 	var (
-		hasUpper   bool = false
-		hasLower   bool = false
-		hasNumber  bool = false
-		hasSpecial bool = false
+		hasUpper   bool
+		hasLower   bool
+		hasNumber  bool
+		hasSpecial bool
 	)
 
 	if len(password) < minLength {

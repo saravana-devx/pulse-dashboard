@@ -6,21 +6,21 @@ import (
 )
 
 type UserRepository struct {
-	DB *gorm.DB
+	db *gorm.DB
 }
 
 func NewUserRepository(db *gorm.DB) *UserRepository {
-	return &UserRepository{DB: db}
+	return &UserRepository{db: db}
 }
 
 func (r *UserRepository) CheckEmailExists(email string) (bool, error) {
-	var user UserModel
-	err := r.DB.Where("email = ?", email).First(&user).Error
+	var user User
+	err := r.db.Where("email = ?", email).First(&user).Error
 
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return false, nil
 	}
-	
+
 	if err != nil {
 		return false, err
 	}
@@ -28,6 +28,16 @@ func (r *UserRepository) CheckEmailExists(email string) (bool, error) {
 	return true, nil
 }
 
-func (r *UserRepository) CreateUser(user *UserModel) error {
-	return r.DB.Create(user).Error
+func (r *UserRepository) CreateUserWithRefreshToken(user *User, refreshToken *RefreshToken) (*User, error) {
+	err := r.db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(user).Error; err != nil {
+			return err
+		}
+		refreshToken.UserID = user.ID
+		return tx.Create(refreshToken).Error
+	})
+	if err != nil {
+		return nil, err
+	}
+	return user, nil
 }
