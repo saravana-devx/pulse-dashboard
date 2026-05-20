@@ -13,7 +13,7 @@ import (
 )
 
 const (
-	AccessTokenTTL  = 24 * time.Hour
+	AccessTokenTTL  = 15 * time.Minute
 	RefreshTokenTTL = 7 * 24 * time.Hour
 )
 
@@ -35,15 +35,27 @@ func getJWTSecret() []byte {
 	return jwtSecret
 }
 
-func CreateToken(userID string, email string) (string, error) {
+func CreateToken(userID string) (string, error) {
+	jti, err := generateJTI()
+	if err != nil {
+		return "", err
+	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
-			"email": email,
-			"sub":   userID,
-			"exp":   time.Now().Add(AccessTokenTTL).Unix(),
-			"iat":   time.Now().Unix(),
+			"sub": userID,
+			"jti": jti,
+			"exp": time.Now().Add(AccessTokenTTL).Unix(),
+			"iat": time.Now().Unix(),
 		})
 	return token.SignedString(getJWTSecret())
+}
+
+func generateJTI() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
 }
 
 // HashToken returns a deterministic SHA-256 hex digest of the token.
@@ -65,7 +77,13 @@ func GenerateRefreshToken() (rawToken string, hashedToken string, err error) {
 	return rawToken, hashedToken, nil
 }
 
-func VerifyToken(tokenString string) error {
+type AccessClaims struct {
+	UserID    string
+	JTI       string
+	ExpiresAt time.Time
+}
+
+func ParseAccessToken(tokenString string) (*AccessClaims, error) {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
@@ -73,10 +91,27 @@ func VerifyToken(tokenString string) error {
 		return getJWTSecret(), nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !token.Valid {
-		return fmt.Errorf("invalid token")
+		return nil, fmt.Errorf("invalid token")
 	}
-	return nil
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return nil, fmt.Errorf("invalid claims")
+	}
+
+	sub, _ := claims["sub"].(string)
+	jti, _ := claims["jti"].(string)
+	if sub == "" || jti == "" {
+		return nil, fmt.Errorf("missing required claims")
+	}
+
+	expFloat, _ := claims["exp"].(float64)
+	return &AccessClaims{
+		UserID:    sub,
+		JTI:       jti,
+		ExpiresAt: time.Unix(int64(expFloat), 0),
+	}, nil
 }

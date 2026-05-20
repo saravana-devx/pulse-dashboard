@@ -10,11 +10,12 @@ import (
 )
 
 type Service struct {
-	repo *UserRepository
+	repo     *UserRepository
+	jtiStore *JTIStore
 }
 
-func NewService(repo *UserRepository) *Service {
-	return &Service{repo: repo}
+func NewService(repo *UserRepository, jtiStore *JTIStore) *Service {
+	return &Service{repo: repo, jtiStore: jtiStore}
 }
 
 func (s *Service) CreateUserSerive(ctx context.Context, req *CreateUserRequest) (*SignupResult, error) {
@@ -58,7 +59,7 @@ func (s *Service) CreateUserSerive(ctx context.Context, req *CreateUserRequest) 
 		return nil, fmt.Errorf("%w: %v", ErrToCreateUser, err)
 	}
 
-	accessToken, err := CreateToken(createdUser.ID, createdUser.Email)
+	accessToken, err := CreateToken(createdUser.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrAccessTokenGenerate, err)
 	}
@@ -87,7 +88,6 @@ func (s *Service) LoginUserSerive(ctx context.Context, req *LoginRequest) (*Logi
 		return nil, ErrWrongPassword
 	}
 
-	
 	rawRefresh, hashedRefresh, err := GenerateRefreshToken()
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrRefreshTokenGenerate, err)
@@ -102,7 +102,7 @@ func (s *Service) LoginUserSerive(ctx context.Context, req *LoginRequest) (*Logi
 		return nil, fmt.Errorf("%w: %v", ErrRefreshTokenStore, err)
 	}
 
-	accessToken, err := CreateToken(user.ID, user.Email)
+	accessToken, err := CreateToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrAccessTokenGenerate, err)
 	}
@@ -156,7 +156,7 @@ func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken string) (
 		return nil, fmt.Errorf("%w: %v", ErrTokenRotation, err)
 	}
 
-	accessToken, err := CreateToken(user.ID, user.Email)
+	accessToken, err := CreateToken(user.ID)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %v", ErrAccessTokenGenerate, err)
 	}
@@ -165,4 +165,27 @@ func (s *Service) RefreshAccessToken(ctx context.Context, refreshToken string) (
 		AccessToken:  accessToken,
 		RefreshToken: rawRefresh,
 	}, nil
+}
+
+func (s *Service) LogoutService(ctx context.Context, jti string, accessExp time.Time, refreshToken string) error {
+	if err := s.jtiStore.Revoke(ctx, jti, time.Until(accessExp)); err != nil {
+		return fmt.Errorf("revoke jti: %w", err)
+	}
+
+	hash := HashToken(refreshToken)
+
+	stored, err := s.repo.FindRefreshTokenByHash(ctx, hash)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return fmt.Errorf("lookup refresh token: %w", err)
+	}
+
+	if stored.RevokedAt != nil {
+		_ = s.repo.RevokeFamily(ctx, stored.FamilyID)
+		return ErrRefreshTokenReused
+	}
+
+	return s.repo.RevokeFamily(ctx, stored.FamilyID)
 }

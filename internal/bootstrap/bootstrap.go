@@ -11,10 +11,9 @@ import (
 )
 
 type App struct {
-	Router     *gin.Engine
-	DB         *gorm.DB
-	Redis      *redis.Redis
-	TokenStore *auth.TokenStore
+	Router *gin.Engine
+	DB     *gorm.DB
+	Redis  *redis.Redis
 }
 
 func New() (*App, error) {
@@ -25,12 +24,12 @@ func New() (*App, error) {
 	rdb := redis.NewRedis()
 
 	userRepo := auth.NewUserRepository(db)
-	tokenStore := auth.NewTokenStore(rdb)
-	authService := auth.NewService(userRepo)
+	jtiStore := auth.NewJTIStore(rdb)
+	authService := auth.NewService(userRepo, jtiStore)
 	authHandler := auth.NewHandler(authService)
 
 	router := gin.Default()
-	routes.Register(router, authHandler)
+	routes.Register(router, authHandler, jtiStore, db, rdb)
 
-	return &App{Router: router, DB: db, Redis: rdb, TokenStore: tokenStore}, nil
+	return &App{Router: router, DB: db, Redis: rdb}, nil
 }
