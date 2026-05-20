@@ -2,32 +2,57 @@ package auth
 
 import (
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
+	"sync"
 	"time"
+
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/spf13/viper"
 )
 
-var secretKey = []byte("secret-key")
+const (
+	AccessTokenTTL  = 24 * time.Hour
+	RefreshTokenTTL = 7 * 24 * time.Hour
+)
 
-func CreateToken(id string, email string) (string, error) {
+var (
+	jwtSecretOnce sync.Once
+	jwtSecret     []byte
+)
+
+// getJWTSecret is lazy because viper is loaded inside main() — a package-level
+// initializer would run before .env is read.
+func getJWTSecret() []byte {
+	jwtSecretOnce.Do(func() {
+		s := viper.GetString("ACCESS_SECRET")
+		if s == "" {
+			panic("ACCESS_SECRET is not set in config")
+		}
+		jwtSecret = []byte(s)
+	})
+	return jwtSecret
+}
+
+func CreateToken(userID string, email string) (string, error) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
 		jwt.MapClaims{
 			"email": email,
-			"id":    id,
-			"exp":   time.Now().Add(time.Hour * 24).Unix(),
+			"sub":   userID,
+			"exp":   time.Now().Add(AccessTokenTTL).Unix(),
+			"iat":   time.Now().Unix(),
 		})
-	tokenString, err := token.SignedString(secretKey)
-	if err != nil {
-		return "", err
-	}
-	return tokenString, nil
+	return token.SignedString(getJWTSecret())
 }
 
-func HashToken(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
+// HashToken returns a deterministic SHA-256 hex digest of the token.
+// Deterministic hashing lets us look up refresh-token rows by hash. Bcrypt is
+// the wrong tool here — it's salted/random and is for low-entropy passwords.
+// Refresh tokens already carry 256 bits of entropy from crypto/rand.
+func HashToken(token string) string {
+	sum := sha256.Sum256([]byte(token))
+	return hex.EncodeToString(sum[:])
 }
 
 func GenerateRefreshToken() (rawToken string, hashedToken string, err error) {
@@ -36,21 +61,22 @@ func GenerateRefreshToken() (rawToken string, hashedToken string, err error) {
 		return "", "", err
 	}
 	rawToken = hex.EncodeToString(bytes)
-	hashedToken, err = HashToken(rawToken)
-	return rawToken, hashedToken, err
+	hashedToken = HashToken(rawToken)
+	return rawToken, hashedToken, nil
 }
 
 func VerifyToken(tokenString string) error {
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		return secretKey, nil
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+		}
+		return getJWTSecret(), nil
 	})
 	if err != nil {
 		return err
 	}
-
 	if !token.Valid {
 		return fmt.Errorf("invalid token")
 	}
-
 	return nil
 }

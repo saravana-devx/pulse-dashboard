@@ -15,3 +15,14 @@ type SignupResult struct {
 	AccessToken  string
 	RefreshToken string
 }
+
+type LoginResult struct {
+	User         *User
+	AccessToken  string
+	RefreshToken string
+}
+
+type Tokens struct {
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+}

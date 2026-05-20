@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS jobs (
     completed_at TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    deleted_at   TIMESTAMPTZ,
     PRIMARY KEY (id, created_at)                    -- ← composite primary key
 ) PARTITION BY RANGE (created_at);
 
@@ -47,3 +48,5 @@ WHERE
 CREATE INDEX ON jobs (worker_id)
 WHERE
     worker_id IS NOT NULL;
+CREATE INDEX ON jobs (deleted_at)
+WHERE deleted_at IS NULL;
