@@ -83,7 +83,7 @@ func (h *Handler) LoginUser(c *gin.Context) {
 }
 
 func (h *Handler) RefreshAccessToken(c *gin.Context) {
-	refreshToken, err := extractBearerToken(c.GetHeader("Authorization"))
+	refreshToken, err := ExtractBearerToken(c.GetHeader("Authorization"))
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return
@@ -147,7 +147,7 @@ func (h *Handler) Logout(c *gin.Context) {
 	})
 }
 
-func extractBearerToken(header string) (string, error) {
+func ExtractBearerToken(header string) (string, error) {
 	if header == "" {
 		return "", errors.New("missing authorization header")
 	}

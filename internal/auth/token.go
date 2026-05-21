@@ -18,34 +18,52 @@ const (
 )
 
 var (
-	jwtSecretOnce sync.Once
+	jwtConfigOnce sync.Once
 	jwtSecret     []byte
+	jwtIssuer     string
+	jwtAudience   string
 )
 
-// getJWTSecret is lazy because viper is loaded inside main() — a package-level
+// loadJWTConfig is lazy because viper is loaded inside main() — a package-level
 // initializer would run before .env is read.
-func getJWTSecret() []byte {
-	jwtSecretOnce.Do(func() {
+func loadJWTConfig() {
+	jwtConfigOnce.Do(func() {
 		s := viper.GetString("ACCESS_SECRET")
 		if s == "" {
 			panic("ACCESS_SECRET is not set in config")
 		}
 		jwtSecret = []byte(s)
+
+		jwtIssuer = viper.GetString("JWT_ISSUER")
+		if jwtIssuer == "" {
+			panic("JWT_ISSUER is not set in config")
+		}
+		jwtAudience = viper.GetString("JWT_AUDIENCE")
+		if jwtAudience == "" {
+			panic("JWT_AUDIENCE is not set in config")
+		}
 	})
-	return jwtSecret
 }
+
+func getJWTSecret() []byte   { loadJWTConfig(); return jwtSecret }
+func getJWTIssuer() string   { loadJWTConfig(); return jwtIssuer }
+func getJWTAudience() string { loadJWTConfig(); return jwtAudience }
 
 func CreateToken(userID string) (string, error) {
 	jti, err := generateJTI()
 	if err != nil {
 		return "", err
 	}
+	now := time.Now()
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256,
-		jwt.MapClaims{
-			"sub": userID,
-			"jti": jti,
-			"exp": time.Now().Add(AccessTokenTTL).Unix(),
-			"iat": time.Now().Unix(),
+		jwt.RegisteredClaims{
+			Issuer:    getJWTIssuer(),
+			Subject:   userID,
+			Audience:  jwt.ClaimStrings{getJWTAudience()},
+			ID:        jti,
+			IssuedAt:  jwt.NewNumericDate(now),
+			NotBefore: jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(AccessTokenTTL)),
 		})
 	return token.SignedString(getJWTSecret())
 }
@@ -84,34 +102,33 @@ type AccessClaims struct {
 }
 
 func ParseAccessToken(tokenString string) (*AccessClaims, error) {
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+	claims := &jwt.RegisteredClaims{}
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
 			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		}
 		return getJWTSecret(), nil
-	})
+	},
+		jwt.WithIssuer(getJWTIssuer()),
+		jwt.WithAudience(getJWTAudience()),
+		jwt.WithExpirationRequired(),
+		jwt.WithIssuedAt(),
+	)
 	if err != nil {
 		return nil, err
 	}
 	if !token.Valid {
 		return nil, fmt.Errorf("invalid token")
 	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok {
-		return nil, fmt.Errorf("invalid claims")
-	}
-
-	sub, _ := claims["sub"].(string)
-	jti, _ := claims["jti"].(string)
-	if sub == "" || jti == "" {
+	if claims.Subject == "" || claims.ID == "" {
 		return nil, fmt.Errorf("missing required claims")
 	}
-
-	expFloat, _ := claims["exp"].(float64)
+	if claims.ExpiresAt == nil {
+		return nil, fmt.Errorf("missing exp claim")
+	}
 	return &AccessClaims{
-		UserID:    sub,
-		JTI:       jti,
-		ExpiresAt: time.Unix(int64(expFloat), 0),
+		UserID:    claims.Subject,
+		JTI:       claims.ID,
+		ExpiresAt: claims.ExpiresAt.Time,
 	}, nil
 }
