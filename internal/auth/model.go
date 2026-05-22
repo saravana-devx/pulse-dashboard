@@ -7,11 +7,11 @@ import (
 )
 
 type User struct {
-	ID           string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v7()"`
-	Email        string         `gorm:"uniqueIndex;not null"`
-	PasswordHash string         `gorm:"not null"`
-	CreatedAt    time.Time      `gorm:"default:now()"`
-	DeletedAt    gorm.DeletedAt `gorm:"index"`
+	ID           string         `gorm:"type:uuid;primaryKey;default:uuid_generate_v7()" json:"id"`
+	Email        string         `gorm:"uniqueIndex;not null" json:"email"`
+	PasswordHash string         `gorm:"not null" json:"-"`
+	CreatedAt    time.Time      `gorm:"default:now()" json:"createdAt"`
+	DeletedAt    gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
 func (User) TableName() string {

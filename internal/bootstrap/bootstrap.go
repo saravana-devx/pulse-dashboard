@@ -6,6 +6,7 @@ import (
 
 	"pulseDashboard/internal/auth"
 	"pulseDashboard/internal/database"
+	"pulseDashboard/internal/jobs"
 	"pulseDashboard/internal/redis"
 	"pulseDashboard/internal/routes"
 )
@@ -28,8 +29,18 @@ func New() (*App, error) {
 	authService := auth.NewService(userRepo, jtiStore)
 	authHandler := auth.NewHandler(authService)
 
+	jobsRepo := jobs.NewJobRepository(db)
+	jobsService := jobs.NewService(jobsRepo)
+	jobsHandler := jobs.NewHandler(jobsService)
+
 	router := gin.Default()
-	routes.Register(router, authHandler, jtiStore, db, rdb)
+	// No reverse proxy in front yet — don't read X-Forwarded-* headers from
+	// arbitrary clients. When deploying behind nginx/ALB/Cloudflare, replace
+	// this with SetTrustedProxies(<known proxy CIDRs>).
+	if err := router.SetTrustedProxies(nil); err != nil {
+		return nil, err
+	}
+	routes.Register(router, authHandler, jobsHandler, jtiStore, db, rdb)
 
 	return &App{Router: router, DB: db, Redis: rdb}, nil
 }

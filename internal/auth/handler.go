@@ -46,10 +46,8 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, gin.H{
-		"message":      "user created",
-		"user":         result.User,
-		"accessToken":  result.AccessToken,
-		"refreshToken": result.RefreshToken,
+		"message": "user created",
+		"data":    result,
 	})
 }
 
@@ -75,10 +73,8 @@ func (h *Handler) LoginUser(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"message":      "Login Successful",
-		"user":         loginResult.User,
-		"accessToken":  loginResult.AccessToken,
-		"refreshToken": loginResult.RefreshToken,
+		"message": "Login Successful",
+		"data":    loginResult,
 	})
 }
 
@@ -107,10 +103,7 @@ func (h *Handler) RefreshAccessToken(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{
 		"message": "created new access and refresh token",
-		"tokens": gin.H{
-			"accessToken":  tokens.AccessToken,
-			"refreshToken": tokens.RefreshToken,
-		},
+		"data":    tokens,
 	})
 }
 

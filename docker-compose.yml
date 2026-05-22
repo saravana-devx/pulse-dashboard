@@ -65,6 +65,8 @@ services:
         # Why? Air compiles binary into ./tmp/main
         # we don't want that binary synced back
         # to our host machine, keep it container-only
+      - go_build_cache:/root/.cache/go-build  # persist compiler cache across container rebuilds
+      - go_mod_cache:/go/pkg/mod              # persist downloaded modules across container rebuilds
     command: air -c .air.server.toml # override CMD, use server config
     env_file:
       - .env # loads DATABASE_URL and other vars your server needs
@@ -87,6 +89,8 @@ services:
     volumes:
       - .:/app
       - /app/tmp
+      - go_build_cache:/root/.cache/go-build
+      - go_mod_cache:/go/pkg/mod
     command: air -c .air.worker.toml
     environment:
       - GO_ENV=development
@@ -95,3 +99,5 @@ volumes:
   postgresql_data: # we have to right the volumes at the end of the docker-compose.yml file and this volume is used to store/presist the data in my machine
     # this data only gets delete only if i delete my docker volume or delete the container
   redis_data:
+  go_build_cache:  # Go compiler cache — speeds up rebuilds
+  go_mod_cache:    # Downloaded Go modules — survives container rebuilds

@@ -6,4 +6,6 @@ tmp_dir = "tmp/server"
   bin = "./tmp/server/main"
   delay = 1000
   include_ext = ["go", "mod"]
-  exclude_dir = ["tmp", "cmd/server"]
+  exclude_dir = ["tmp"]
+  poll = true
+  poll_interval = 500

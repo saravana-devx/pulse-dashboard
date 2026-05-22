@@ -10,23 +10,23 @@ type LoginRequest struct {
 	Password string `json:"password" binding:"required"`
 }
 
+type LogoutRequest struct {
+	RefreshToken string `json:"refreshToken" binding:"required"`
+}
+
 type SignupResult struct {
-	User         *User
-	AccessToken  string
-	RefreshToken string
+	User         *User  `json:"user"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 type LoginResult struct {
-	User         *User
-	AccessToken  string
-	RefreshToken string
+	User         *User  `json:"user"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
 
 type Tokens struct {
-	AccessToken  string `json:"access_token"`
-	RefreshToken string `json:"refresh_token"`
-}
-
-type LogoutRequest struct {
-	RefreshToken string `json:"refreshToken" binding:"required"`
+	AccessToken  string `json:"accessToken"`
+	RefreshToken string `json:"refreshToken"`
 }
