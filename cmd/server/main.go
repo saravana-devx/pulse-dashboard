@@ -10,12 +10,11 @@ import (
 	"pulseDashboard/internal/config"
 )
 
-// func init() {
-// 	config.LoadEnvVariables()
-// }
-
 func main() {
-	config.LoadEnvVariables()
+	if err := config.Load(); err != nil {
+		log.Fatalf("config load failed: %v", err)
+	}
+
 	app, err := bootstrap.New()
 
 	if err != nil {

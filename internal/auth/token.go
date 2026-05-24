@@ -5,11 +5,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"sync"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
-	"github.com/spf13/viper"
+
+	"pulseDashboard/internal/config"
 )
 
 const (
@@ -17,37 +17,11 @@ const (
 	RefreshTokenTTL = 7 * 24 * time.Hour
 )
 
-var (
-	jwtConfigOnce sync.Once
-	jwtSecret     []byte
-	jwtIssuer     string
-	jwtAudience   string
-)
-
-// loadJWTConfig is lazy because viper is loaded inside main() — a package-level
-// initializer would run before .env is read.
-func loadJWTConfig() {
-	jwtConfigOnce.Do(func() {
-		s := viper.GetString("ACCESS_SECRET")
-		if s == "" {
-			panic("ACCESS_SECRET is not set in config")
-		}
-		jwtSecret = []byte(s)
-
-		jwtIssuer = viper.GetString("JWT_ISSUER")
-		if jwtIssuer == "" {
-			panic("JWT_ISSUER is not set in config")
-		}
-		jwtAudience = viper.GetString("JWT_AUDIENCE")
-		if jwtAudience == "" {
-			panic("JWT_AUDIENCE is not set in config")
-		}
-	})
-}
-
-func getJWTSecret() []byte   { loadJWTConfig(); return jwtSecret }
-func getJWTIssuer() string   { loadJWTConfig(); return jwtIssuer }
-func getJWTAudience() string { loadJWTConfig(); return jwtAudience }
+// JWT settings are validated centrally in config.Load; these just read the
+// already-loaded singleton.
+func getJWTSecret() []byte   { return []byte(config.Get().AccessSecret) }
+func getJWTIssuer() string   { return config.Get().JWTIssuer }
+func getJWTAudience() string { return config.Get().JWTAudience }
 
 func CreateToken(userID string) (string, error) {
 	jti, err := generateJTI()

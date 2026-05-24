@@ -1,6 +1,19 @@
 package jobs
 
-type CreateJobRequest struct{}
+import (
+	"time"
+
+	"gorm.io/datatypes"
+)
+
+type CreateJobRequest struct {
+	UserID      string         `json:"userId"`
+	Type        JobType        `json:"type"`
+	Payload     datatypes.JSON `json:"payload"`
+	Priority    *int           `json:"priority,omitempty"`
+	MaxRetries  *int           `json:"maxRetries,omitempty"`
+	ScheduledAt *time.Time     `json:"scheduledAt,omitempty"`
+}
 
 type UpdateJobRequest struct{}
 

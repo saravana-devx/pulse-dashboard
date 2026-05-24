@@ -2,19 +2,22 @@ package database
 
 import (
 	"fmt"
-	"github.com/spf13/viper"
+	"time"
+
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"time"
+
+	"pulseDashboard/internal/config"
 )
 
 func ConnectDB() (*gorm.DB, error) {
+	c := config.Get()
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable",
-		viper.GetString("POSTGRES_USER"),
-		viper.GetString("POSTGRES_PASSWORD"),
-		viper.GetString("POSTGRES_HOST"),
-		viper.GetString("POSTGRES_PORT"),
-		viper.GetString("POSTGRES_DB"),
+		c.PostgresUser,
+		c.PostgresPassword,
+		c.PostgresHost,
+		c.PostgresPort,
+		c.PostgresDB,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})

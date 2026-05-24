@@ -2,6 +2,10 @@ package jobs
 
 import (
 	"context"
+	"errors"
+	"fmt"
+
+	"gorm.io/gorm"
 )
 
 type Service struct {
@@ -13,11 +17,47 @@ func NewService(repo *JobsRepository) *Service {
 }
 
 func (s *Service) CreateJobService(ctx context.Context, req *CreateJobRequest) (*CreateJobResult, error) {
-	return nil, nil
+
+	if req.MaxRetries != nil && *req.MaxRetries > 10 {
+		return nil, fmt.Errorf("%w: max retries must be 10 or less", ErrInvalidJobInput)
+	}
+
+	job := &Job{
+		UserID:  req.UserID,
+		Type:    req.Type,
+		Payload: req.Payload,
+	}
+
+	// safe assign optional fields
+	if req.MaxRetries != nil {
+		job.MaxRetries = *req.MaxRetries
+	}
+
+	if req.ScheduledAt != nil {
+		job.ScheduledAt = *req.ScheduledAt
+	}
+
+	if req.Priority != nil {
+		job.Priority = *req.Priority
+	}
+
+	createdJob, err := s.repo.CreateJob(ctx, job)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrToCreateJob, err)
+	}
+
+	return &CreateJobResult{Job: createdJob}, nil
 }
 
 func (s *Service) GetJobByIdService(ctx context.Context, id string) (*GetJobByIdResult, error) {
-	return nil, nil
+	result, err := s.repo.GetJobByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrJobNotFound
+		}
+		return nil, fmt.Errorf("%w: %v", ErrToGetJob, err)
+	}
+	return &GetJobByIdResult{Job: result}, nil
 }
 
 func (s *Service) GetAllJobsService(ctx context.Context, userID string) (*GetAllJobsResult, error) {

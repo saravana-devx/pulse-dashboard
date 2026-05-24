@@ -15,11 +15,20 @@ func NewJobRepository(db *gorm.DB) *JobsRepository {
 }
 
 func (r *JobsRepository) CreateJob(ctx context.Context, job *Job) (*Job, error) {
-	return nil, nil
+	err := r.db.WithContext(ctx).Create(job).Error
+	if err != nil {
+		return nil, err
+	}
+	return job, nil
 }
 
 func (r *JobsRepository) GetJobByID(ctx context.Context, id string) (*Job, error) {
-	return nil, nil
+	var job Job
+	err := r.db.WithContext(ctx).Model(&Job{}).Where("id = ?", id).First(&job).Error
+	if err != nil {
+		return nil, err
+	}
+	return &job, nil
 }
 
 func (r *JobsRepository) GetAllJobs(ctx context.Context, userID string) ([]*Job, error) {

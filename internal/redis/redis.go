@@ -1,9 +1,11 @@
 package redis
 
 import (
-	"github.com/redis/go-redis/v9"
-	"github.com/spf13/viper"
 	"sync"
+
+	"github.com/redis/go-redis/v9"
+
+	"pulseDashboard/internal/config"
 )
 
 type Redis struct {
@@ -20,15 +22,10 @@ var (
 // without singleton pattern we might can get multiple redis connections
 func NewRedis() *Redis {
 	once.Do(func() {
-		addr := viper.GetString("REDIS_ADDR")
-		password := viper.GetString("REDIS_PASSWORD")
-		if addr == "" {
-			addr = "localhost:6379"
-		}
-
+		c := config.Get()
 		rdb := redis.NewClient(&redis.Options{
-			Addr:     addr,
-			Password: password,
+			Addr:     c.RedisAddr,
+			Password: c.RedisPassword,
 			DB:       0,
 		})
 		redisInstance = &Redis{Client: rdb}

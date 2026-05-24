@@ -10,7 +10,7 @@ import (
 func RegisterJobsRoutes(r *gin.Engine, h *jobs.Handler, jtiStore *auth.JTIStore) {
 	g := r.Group("/jobs", middleware.RequireAuth(jtiStore))
 	{
-		g.POST("", h.CreateJobs)
+		g.POST("", h.CreateJob)
 		g.GET("/:id", h.GetJobById)
 		g.GET("", h.GetAllJobs)
 		g.PATCH("/:id", h.UpdateJob)
