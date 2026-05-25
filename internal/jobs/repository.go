@@ -40,13 +40,24 @@ func (r *JobsRepository) GetJobByID(ctx context.Context, id string) (*Job, error
 }
 
 func (r *JobsRepository) GetAllJobs(ctx context.Context, userID string) ([]*Job, error) {
-	return nil, nil
+	var jobs []*Job
+	err := r.db.WithContext(ctx).Model(&Job{}).Where("user_id = ? ", userID).Find(&jobs).Error
+	if err != nil {
+		return nil, err
+	}
+	return jobs, nil
 }
 
-func (r *JobsRepository) UpdateJob(ctx context.Context, job *Job) (*Job, error) {
-	return nil, nil
+func (r *JobsRepository) UpdateJob(ctx context.Context, id string, job *Job) (*Job, error) {
+
+	result := r.db.WithContext(ctx).Model(&Job{}).Where("id = ?", id).Updates(&job)
+
+	if result.Error != nil {
+		return nil, result.Error
+	}
+	return job, nil
 }
 
 func (r *JobsRepository) DeleteJob(ctx context.Context, id string) error {
-	return nil
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&Job{}).Error
 }

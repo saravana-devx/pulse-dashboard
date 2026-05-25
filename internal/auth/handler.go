@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+
+	"pulseDashboard/internal/httpx"
 )
 
 type Handler struct {
@@ -21,7 +23,7 @@ func NewHandler(svc *Service) *Handler {
 func (h *Handler) CreateUser(c *gin.Context) {
 	var body CreateUserRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		httpx.Error(c, http.StatusBadRequest, httpx.MsgInvalidBody)
 		return
 	}
 
@@ -32,29 +34,26 @@ func (h *Handler) CreateUser(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrEmailExists):
-			c.JSON(http.StatusConflict, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusConflict, err.Error())
 		case errors.Is(err, ErrInvalidEmail):
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusUnauthorized, err.Error())
 		case errors.As(err, new(*WeakPasswordError)):
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusBadRequest, err.Error())
 		case errors.Is(err, ErrHashingPassword), errors.Is(err, ErrToCreateUser):
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusInternalServerError, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			httpx.Error(c, http.StatusInternalServerError, httpx.MsgInternalError)
 		}
 		return
 	}
 
-	c.JSON(http.StatusCreated, gin.H{
-		"message": "user created",
-		"data":    result,
-	})
+	httpx.Success(c, http.StatusCreated, "user created", result)
 }
 
 func (h *Handler) LoginUser(c *gin.Context) {
 	var body LoginRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		httpx.Error(c, http.StatusBadRequest, httpx.MsgInvalidBody)
 		return
 	}
 
@@ -65,23 +64,20 @@ func (h *Handler) LoginUser(c *gin.Context) {
 	if err != nil {
 		switch {
 		case errors.Is(err, ErrInvalidEmail), errors.Is(err, ErrWrongPassword):
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusUnauthorized, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			httpx.Error(c, http.StatusInternalServerError, httpx.MsgInternalError)
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Login Successful",
-		"data":    loginResult,
-	})
+	httpx.Success(c, http.StatusOK, "login successful", loginResult)
 }
 
 func (h *Handler) RefreshAccessToken(c *gin.Context) {
 	refreshToken, err := ExtractBearerToken(c.GetHeader("Authorization"))
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		httpx.Error(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -94,29 +90,26 @@ func (h *Handler) RefreshAccessToken(c *gin.Context) {
 		case errors.Is(err, ErrInvalidRefreshToken),
 			errors.Is(err, ErrRefreshTokenReused),
 			errors.Is(err, ErrUserNotFound):
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusUnauthorized, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			httpx.Error(c, http.StatusInternalServerError, httpx.MsgInternalError)
 		}
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{
-		"message": "created new access and refresh token",
-		"data":    tokens,
-	})
+	httpx.Success(c, http.StatusOK, "token refreshed", tokens)
 }
 
 func (h *Handler) Logout(c *gin.Context) {
 	var body LogoutRequest
 	if err := c.ShouldBindJSON(&body); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request body"})
+		httpx.Error(c, http.StatusBadRequest, httpx.MsgInvalidBody)
 		return
 	}
 
 	jti, ok := JTIFromContext(c)
 	if !ok {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "missing token context"})
+		httpx.Error(c, http.StatusUnauthorized, "missing token context")
 		return
 	}
 	exp, _ := ExpFromContext(c)
@@ -129,15 +122,14 @@ func (h *Handler) Logout(c *gin.Context) {
 		case errors.Is(err, ErrInvalidRefreshToken),
 			errors.Is(err, ErrRefreshTokenReused),
 			errors.Is(err, ErrUserNotFound):
-			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			httpx.Error(c, http.StatusUnauthorized, err.Error())
 		default:
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "internal error"})
+			httpx.Error(c, http.StatusInternalServerError, httpx.MsgInternalError)
 		}
 		return
 	}
-	c.JSON(http.StatusOK, gin.H{
-		"message": "Logout user successfully",
-	})
+
+	httpx.Success(c, http.StatusOK, "logout successful", nil)
 }
 
 func ExtractBearerToken(header string) (string, error) {

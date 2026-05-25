@@ -105,13 +105,70 @@ func (s *Service) GetJobByIdService(ctx context.Context, id string) (*GetJobById
 }
 
 func (s *Service) GetAllJobsService(ctx context.Context, userID string) (*GetAllJobsResult, error) {
-	return nil, nil
+	result, err := s.repo.GetAllJobs(ctx, userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrJobNotFound
+		}
+		return nil, fmt.Errorf("%w: %v", ErrToGetAllJobs, err)
+	}
+
+	return &GetAllJobsResult{Jobs: result}, nil
 }
 
-func (s *Service) UpdateJobService(ctx context.Context, id string, req *UpdateJobRequest) (*Job, error) {
-	return nil, nil
+func (s *Service) UpdateJobService(ctx context.Context, id string, userID string, req *UpdateJobRequest) (*Job, error) {
+
+	job, err := s.repo.GetJobByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrJobNotFound
+		}
+		return nil, fmt.Errorf("%w: %v", ErrToGetJob, err)
+	}
+
+	if job.UserID != userID {
+		return nil, ErrUnauthorized
+	}
+
+	if req.MaxRetries != nil && *req.MaxRetries > 10 {
+		return nil, fmt.Errorf("%w: max retries must be 10 or less", ErrInvalidJobInput)
+	}
+
+	// Merge: only fields present in the request overwrite the loaded job.
+	// UserID and all unmanaged fields (Status, Attempts, timestamps, ...)
+	// stay as loaded, so a full-row Save in the repo can't wipe them.
+	if req.Type != "" {
+		job.Type = req.Type
+	}
+	if req.Payload != nil {
+		job.Payload = req.Payload
+	}
+	if req.MaxRetries != nil {
+		job.MaxRetries = *req.MaxRetries
+	}
+	if req.ScheduledAt != nil {
+		job.ScheduledAt = *req.ScheduledAt
+	}
+	if req.Priority != nil {
+		job.Priority = *req.Priority
+	}
+
+	result, err := s.repo.UpdateJob(ctx, job.ID, job)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %v", ErrToUpdateJob, err)
+	}
+
+	return result, nil
+
 }
 
 func (s *Service) DeleteJobService(ctx context.Context, id string) error {
+	err := s.repo.DeleteJob(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrJobNotFound
+		}
+		return fmt.Errorf("%w: %v", ErrToDeleteJob, err)
+	}
 	return nil
 }

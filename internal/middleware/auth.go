@@ -8,19 +8,20 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"pulseDashboard/internal/auth"
+	"pulseDashboard/internal/httpx"
 )
 
 func RequireAuth(jtiStore *auth.JTIStore) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token, err := auth.ExtractBearerToken(c.GetHeader("Authorization"))
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			httpx.AbortError(c, http.StatusUnauthorized, err.Error())
 			return
 		}
 
 		claims, err := auth.ParseAccessToken(token)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "invalid or expired token"})
+			httpx.AbortError(c, http.StatusUnauthorized, "invalid or expired token")
 			return
 		}
 
@@ -29,11 +30,11 @@ func RequireAuth(jtiStore *auth.JTIStore) gin.HandlerFunc {
 
 		revoked, err := jtiStore.IsRevoked(ctx, claims.JTI)
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "auth check failed"})
+			httpx.AbortError(c, http.StatusInternalServerError, "auth check failed")
 			return
 		}
 		if revoked {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "token revoked"})
+			httpx.AbortError(c, http.StatusUnauthorized, "token revoked")
 			return
 		}
 
