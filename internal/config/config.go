@@ -25,6 +25,12 @@ type Config struct {
 	// Redis
 	RedisAddr     string
 	RedisPassword string
+
+	// RabbitMQ
+	RabbitMQHost  string
+	RabbitMQUser  string
+	RabbitMQPass  string
+	RabbitMQVHost string
 }
 
 var cfg *Config
@@ -53,6 +59,10 @@ func Load() error {
 		JWTAudience:      viper.GetString("JWT_AUDIENCE"),
 		RedisAddr:        viper.GetString("REDIS_ADDR"),
 		RedisPassword:    viper.GetString("REDIS_PASSWORD"),
+		RabbitMQHost:     viper.GetString("RABBITMQ_HOST"),
+		RabbitMQUser:     viper.GetString("RABBITMQ_DEFAULT_USER"),
+		RabbitMQPass:     viper.GetString("RABBITMQ_DEFAULT_PASS"),
+		RabbitMQVHost:    viper.GetString("RABBITMQ_DEFAULT_VHOST"),
 	}
 
 	if c.RedisAddr == "" {
@@ -72,14 +82,18 @@ func Load() error {
 // optional (local dev may run Redis without auth).
 func (c *Config) validate() error {
 	required := map[string]string{
-		"POSTGRES_HOST":     c.PostgresHost,
-		"POSTGRES_PORT":     c.PostgresPort,
-		"POSTGRES_USER":     c.PostgresUser,
-		"POSTGRES_PASSWORD": c.PostgresPassword,
-		"POSTGRES_DB":       c.PostgresDB,
-		"ACCESS_SECRET":     c.AccessSecret,
-		"JWT_ISSUER":        c.JWTIssuer,
-		"JWT_AUDIENCE":      c.JWTAudience,
+		"POSTGRES_HOST":          c.PostgresHost,
+		"POSTGRES_PORT":          c.PostgresPort,
+		"POSTGRES_USER":          c.PostgresUser,
+		"POSTGRES_PASSWORD":      c.PostgresPassword,
+		"POSTGRES_DB":            c.PostgresDB,
+		"ACCESS_SECRET":          c.AccessSecret,
+		"JWT_ISSUER":             c.JWTIssuer,
+		"JWT_AUDIENCE":           c.JWTAudience,
+		"RABBITMQ_HOST":          c.RabbitMQHost,
+		"RABBITMQ_DEFAULT_USER":  c.RabbitMQUser,
+		"RABBITMQ_DEFAULT_PASS":  c.RabbitMQPass,
+		"RABBITMQ_DEFAULT_VHOST": c.RabbitMQVHost,
 	}
 
 	var missing []string

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"pulseDashboard/internal/rabbitmq"
 	"pulseDashboard/internal/redis"
 )
 
@@ -23,7 +24,7 @@ type serviceStatus struct {
 	Error   string `json:"error,omitempty"`
 }
 
-func RegisterHealthRoute(r *gin.Engine, db *gorm.DB, rdb *redis.Redis) {
+func RegisterHealthRoute(r *gin.Engine, db *gorm.DB, rdb *redis.Redis, mq *rabbitmq.RabbitMQ) {
 	r.GET("/health", func(c *gin.Context) {
 		ctx, cancel := context.WithTimeout(c.Request.Context(), 2*time.Second)
 		defer cancel()
@@ -31,6 +32,7 @@ func RegisterHealthRoute(r *gin.Engine, db *gorm.DB, rdb *redis.Redis) {
 		results := map[string]serviceStatus{
 			"postgres":   checkPostgres(ctx, db),
 			"redis":      checkRedis(ctx, rdb),
+			"rabbitmq":   checkRabbitMQ(mq),
 			"clickhouse": checkClickHouse(ctx),
 		}
 
@@ -68,6 +70,23 @@ func checkRedis(ctx context.Context, rdb *redis.Redis) serviceStatus {
 	if err := rdb.Client.Ping(ctx).Err(); err != nil {
 		return serviceStatus{Status: statusDown, Error: err.Error()}
 	}
+	return serviceStatus{Status: statusUp, Latency: time.Since(start).String()}
+}
+
+// checkRabbitMQ probes the broker. amqp091-go's connection/channel calls aren't
+// context-aware, so the route's timeout doesn't bound this directly; we keep the
+// probe cheap instead. Opening a channel is a round-trip to the broker, so it
+// confirms the broker actually answers — not just that our local socket is open.
+func checkRabbitMQ(mq *rabbitmq.RabbitMQ) serviceStatus {
+	start := time.Now()
+	if mq == nil || mq.Conn == nil || mq.Conn.IsClosed() {
+		return serviceStatus{Status: statusDown, Error: "connection is closed"}
+	}
+	ch, err := mq.Conn.Channel()
+	if err != nil {
+		return serviceStatus{Status: statusDown, Error: err.Error()}
+	}
+	_ = ch.Close()
 	return serviceStatus{Status: statusUp, Latency: time.Since(start).String()}
 }
 

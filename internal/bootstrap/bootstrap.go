@@ -7,14 +7,16 @@ import (
 	"pulseDashboard/internal/auth"
 	"pulseDashboard/internal/database"
 	"pulseDashboard/internal/jobs"
+	"pulseDashboard/internal/rabbitmq"
 	"pulseDashboard/internal/redis"
 	"pulseDashboard/internal/routes"
 )
 
 type App struct {
-	Router *gin.Engine
-	DB     *gorm.DB
-	Redis  *redis.Redis
+	Router   *gin.Engine
+	DB       *gorm.DB
+	Redis    *redis.Redis
+	RabbitMQ *rabbitmq.RabbitMQ
 }
 
 func New() (*App, error) {
@@ -23,6 +25,8 @@ func New() (*App, error) {
 		return nil, err
 	}
 	rdb := redis.NewRedis()
+
+	rabbitMQConn := rabbitmq.NewRabbitMQConnection()
 
 	userRepo := auth.NewUserRepository(db)
 	jtiStore := auth.NewJTIStore(rdb)
@@ -40,7 +44,7 @@ func New() (*App, error) {
 	if err := router.SetTrustedProxies(nil); err != nil {
 		return nil, err
 	}
-	routes.Register(router, authHandler, jobsHandler, jtiStore, db, rdb)
+	routes.Register(router, authHandler, jobsHandler, jtiStore, db, rdb, rabbitMQConn)
 
-	return &App{Router: router, DB: db, Redis: rdb}, nil
+	return &App{Router: router, DB: db, Redis: rdb, RabbitMQ: rabbitMQConn}, nil
 }
